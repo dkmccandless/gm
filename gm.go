@@ -16,7 +16,9 @@ package gm
 import (
 	"math"
 
+	"github.com/golang/geo/r2"
 	"github.com/golang/geo/r3"
+	"github.com/golang/geo/s1"
 	"github.com/golang/geo/s2"
 )
 
@@ -120,11 +122,47 @@ func New(pos, neg s2.LatLng) *GeneralizedMercator {
 	return gm
 }
 
+// Unproject converts a projected point p to a location on the reference sphere.
+func (gm *GeneralizedMercator) Unproject(p r2.Point) s2.LatLng {
+	switch {
+	case math.IsInf(p.Y, 1):
+		return s2.LatLngFromPoint(s2.Point{gm.pos})
+	case math.IsInf(p.Y, -1):
+		return s2.LatLngFromPoint(s2.Point{gm.neg})
+	}
+
+	// The locus of points on the sphere with equal vertical projective coordinate is a circle; let C be its center.
+	// The vertical component of the projection is the same function of angle OPC as the Mercator projection,
+	// the difference being that this angle is in general no longer equal to the point's latitude.
+	// To differentiate the generalized case, call this angle ψ.
+	// Use the inverse function to construct C.
+	var (
+		psi = 2*math.Atan(math.Exp(p.Y)) - math.Pi/2
+
+		// β is the measure of angle OTC, related by sin(β) = sin(ψ)/|T|.
+		// This is also the angular distance of C from the positive k axis.
+		beta = math.Asin(math.Sin(psi) / gm.t)
+
+		// Rotate the basis by an angle of β around the j axis such that C is parallel to the k' axis,
+		// and T-C is parallel to the i' axis.
+		iprime = s2.Rotate(s2.Point{gm.i}, s2.Point{gm.j}, s1.Angle(beta))
+		kprime = s2.Rotate(s2.Point{gm.k}, s2.Point{gm.j}, s1.Angle(beta))
+
+		C = kprime.Mul(math.Sin(psi))
+
+		// P is the point on the circle centered at C such that theta is the measure of angle TCP.
+		P = s2.Rotate(iprime, kprime, s1.Angle(p.X)).Mul(math.Cos(psi)).Add(C)
+	)
+
+	return s2.LatLngFromPoint(s2.Point{P})
+}
+
 // approxEqual is equivalent to r3.Vector's ApproxEqual method but with a larger tolerance.
 func approxEqual(a, b r3.Vector) bool {
 	// r3's epsilon of 1e-16 is too strict to accommodate some values returned by s2.PointFromLatLng
 	// due to propagation of the float64 rounding error math.Cos(math.Pi/2) == 6.123233995736757e-17.
-	// For example, s2.PointFromLatLng(Lat: 0, Lng: math.Pi) == (-1, -1.2246467991473515e-16, 0).
+	// For example, s2.PointFromLatLng(Lat: 0, Lng: math.Pi) == (-1, -1.2246467991473515e-16, 0),
+	// and s2.LatLng{Lat: math.Pi/2}.ApproxEqual(s2.LatLng{Lat: math.Pi/2, Lng: math.Pi}) is false.
 	// 1e-15 is still only about 6.4 nanometers at the Earth's surface.
 	const epsilon = 1e-15
 	return math.Abs(a.X-b.X) < epsilon && math.Abs(a.Y-b.Y) < epsilon && math.Abs(a.Z-b.Z) < epsilon

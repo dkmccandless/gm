@@ -4,6 +4,7 @@ import (
 	"math"
 	"testing"
 
+	"github.com/golang/geo/r2"
 	"github.com/golang/geo/r3"
 	"github.com/golang/geo/s2"
 )
@@ -202,6 +203,65 @@ func TestNew(t *testing.T) {
 			t.Errorf("New(%v, %v): got %+v, want %+v", test.p, test.n, gm, test.gm)
 		}
 	}
+}
+
+type proj struct {
+	s s2.LatLng
+	r r2.Point
+}
+
+func TestUnproject(t *testing.T) {
+	for _, test := range []struct {
+		gm *GeneralizedMercator
+		ps []proj
+	}{
+		{
+			gm: &GeneralizedMercator{
+				pos: r3.Vector{0, 0, 1},
+				neg: r3.Vector{0, 0, -1},
+				i:   r3.Vector{1, 0, 0},
+				j:   r3.Vector{0, 1, 0},
+				k:   r3.Vector{0, 0, 1},
+				t:   math.Inf(1),
+			},
+			ps: []proj{
+				{s2.LatLng{Lat: 0, Lng: 0}, r2.Point{X: 0, Y: 0}},
+				{s2.LatLng{Lat: 0, Lng: math.Pi / 2}, r2.Point{X: math.Pi / 2, Y: 0}},
+				{s2.LatLng{Lat: 0, Lng: math.Pi}, r2.Point{X: math.Pi, Y: 0}},
+				{s2.LatLng{Lat: 0, Lng: -math.Pi / 2}, r2.Point{X: -math.Pi / 2, Y: 0}},
+				{s2.LatLng{Lat: math.Pi / 2}, r2.Point{Y: math.Inf(1)}},
+				{s2.LatLng{Lat: -math.Pi / 2}, r2.Point{Y: math.Inf(-1)}},
+			},
+		},
+		{
+			gm: &GeneralizedMercator{
+				pos: r3.Vector{math.Sqrt2 / 2, 0, -math.Sqrt2 / 2},
+				neg: r3.Vector{-math.Sqrt2 / 2, 0, -math.Sqrt2 / 2},
+				i:   r3.Vector{0, 0, -1},
+				j:   r3.Vector{0, 1, 0},
+				k:   r3.Vector{1, 0, 0},
+				t:   math.Sqrt2,
+			},
+			ps: []proj{
+				{s2.LatLng{Lat: -math.Pi / 2, Lng: 0}, r2.Point{X: 0, Y: 0}},
+				{s2.LatLng{Lat: 0, Lng: math.Pi / 2}, r2.Point{X: math.Pi / 2, Y: 0}},
+				{s2.LatLng{Lat: math.Pi / 2, Lng: 0}, r2.Point{X: math.Pi, Y: 0}},
+				{s2.LatLng{Lat: 0, Lng: -math.Pi / 2}, r2.Point{X: -math.Pi / 2, Y: 0}},
+				{s2.LatLng{Lat: -math.Pi / 4, Lng: 0}, r2.Point{Y: math.Inf(1)}},
+				{s2.LatLng{Lat: -math.Pi / 4, Lng: math.Pi}, r2.Point{Y: math.Inf(-1)}},
+			},
+		},
+	} {
+		for _, p := range test.ps {
+			if got := test.gm.Unproject(p.r); !llApproxEqual(got, p.s) {
+				t.Errorf("Unproject(%+v, %+v): got %+v, want %+v", test.gm, p.r, got, p.s)
+			}
+		}
+	}
+}
+
+func llApproxEqual(a, b s2.LatLng) bool {
+	return approxEqual(s2.PointFromLatLng(a).Vector, s2.PointFromLatLng(b).Vector)
 }
 
 func gmApproxEqual(a, b *GeneralizedMercator) bool {
