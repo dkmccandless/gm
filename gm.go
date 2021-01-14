@@ -122,6 +122,36 @@ func New(pos, neg s2.LatLng) *GeneralizedMercator {
 	return gm
 }
 
+// Project converts ll to a projected 2D point.
+func (gm *GeneralizedMercator) Project(ll s2.LatLng) r2.Point {
+	P := s2.PointFromLatLng(ll).Vector
+	switch {
+	case approxEqual(P, gm.pos):
+		return r2.Point{Y: math.Inf(1)}
+	case approxEqual(P, gm.neg):
+		return r2.Point{Y: math.Inf(-1)}
+	}
+
+	var (
+		beta   = math.Copysign(float64(gm.i.Sub(P.Mul(1/gm.t)).Cross(gm.j).Angle(gm.k)), P.Dot(gm.k))
+		iprime = s2.Rotate(s2.Point{gm.i}, s2.Point{gm.j}, s1.Angle(beta)).Vector
+		kprime = s2.Rotate(s2.Point{gm.k}, s2.Point{gm.j}, s1.Angle(beta)).Vector
+
+		C = kprime.Mul(P.Dot(kprime))
+
+		// The vertical component of the projection is the same function of angle OPC as the Mercator projection,
+		// the difference being that this angle is in general no longer equal to the point's latitude.
+		// To differentiate the generalized case, call this angle ψ.
+		psi = math.Copysign(float64(P.Angle(P.Sub(C))), P.Dot(gm.k))
+		z   = math.Log(math.Tan(math.Pi/4 + psi/2))
+
+		// The horizontal component is equal to the measure of angle TCP.
+		theta = math.Copysign(float64(iprime.Angle(P.Sub(C))), P.Sub(C).Dot(gm.j))
+	)
+
+	return r2.Point{X: theta, Y: z}
+}
+
 // Unproject converts a projected point p to a location on the reference sphere.
 func (gm *GeneralizedMercator) Unproject(p r2.Point) s2.LatLng {
 	switch {
