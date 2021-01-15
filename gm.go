@@ -47,19 +47,11 @@ type GeneralizedMercator struct {
 // It panics if pos and neg are equal.
 func New(pos, neg s2.LatLng) *GeneralizedMercator {
 	gm := &GeneralizedMercator{
-		pos: s2.PointFromLatLng(pos).Vector,
-		neg: s2.PointFromLatLng(neg).Vector,
+		// Snap each coordinate to the nearest integer if necessary to avoid math.Cos rounding error
+		pos: snapToInts(s2.PointFromLatLng(pos).Vector),
+		neg: snapToInts(s2.PointFromLatLng(neg).Vector),
 	}
 
-	// Snap to nearest integer if necessary to avoid math.Cos rounding error
-	for _, v := range []r3.Vector{{1, 0, 0}, {0, 1, 0}, {0, 0, 1}, {-1, 0, 0}, {0, -1, 0}, {0, 0, -1}} {
-		if approxEqual(gm.pos, v) {
-			gm.pos = v
-		}
-		if approxEqual(gm.neg, v) {
-			gm.neg = v
-		}
-	}
 	if approxEqual(gm.pos, gm.neg) {
 		panic("indistinguishable poles")
 	}
@@ -196,4 +188,19 @@ func approxEqual(a, b r3.Vector) bool {
 	// 1e-15 is still only about 6.4 nanometers at the Earth's surface.
 	const epsilon = 1e-15
 	return math.Abs(a.X-b.X) < epsilon && math.Abs(a.Y-b.Y) < epsilon && math.Abs(a.Z-b.Z) < epsilon
+}
+
+// snapToInts returns v with any component approximately equal to an integer rounded to that integer.
+func snapToInts(v r3.Vector) r3.Vector {
+	const epsilon = 1e-15
+	if r := math.Round(v.X); math.Abs(v.X-r) < epsilon {
+		v.X = r
+	}
+	if r := math.Round(v.Y); math.Abs(v.Y-r) < epsilon {
+		v.Y = r
+	}
+	if r := math.Round(v.Z); math.Abs(v.Z-r) < epsilon {
+		v.Z = r
+	}
+	return v
 }
