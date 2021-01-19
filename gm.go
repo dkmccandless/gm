@@ -88,15 +88,9 @@ func New(pos, neg s2.LatLng) *GeneralizedMercator {
 			gm.i = r3.Vector{0, 0, 1}
 
 		default:
-			// The great circle equidistant from Pos and Neg intersects the prime meridian at a single point; i lies at that point.
-			// Its latitude is φ_i = arctan(-cos(λ_P)/tan(φ_P)), the solution of P • i == 0, λ_i == 0,
-			// where P is a pole with non-negative latitude so that φ is in the range [-π/2, π/2].
-			p := pos
-			if p.Lat < 0 {
-				p = neg
-			}
-			phi := math.Atan2(-math.Cos(float64(p.Lng)), math.Tan(float64(p.Lat)))
-			gm.i = r3.Vector{math.Cos(phi), 0, math.Sin(phi)}
+			// The great circle equidistant from Pos and Neg intersects the prime meridian at a single point;
+			// the i axis intersects that point.
+			gm.i = r3.Vector{0, gm.pos.Z, 0}.Cross(gm.pos).Normalize()
 		}
 
 	default:
