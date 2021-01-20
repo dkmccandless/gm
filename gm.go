@@ -43,6 +43,34 @@ type GeneralizedMercator struct {
 	t float64
 }
 
+/*
+The projection operations are expressed in terms of the right-handed orthonormal basis (i, j, k), defined as follows.
+The k axis is parallel to the vector from Neg to Pos, and the i and j axes are on the great circle bisecting them.
+If Pos and Neg are not antipodes, then the i axis passes through the midpoint of the shorter leg of the great circle
+containing them. Otherwise, the i axis is defined according to the intersection of the great circle bisecting them with
+the prime meridian:
+
+  1. If the bisector contains the prime meridian, the i axis intersects the prime Meridian at the Equator.
+  2. If the bisector contains the North and South Poles, the i axis passes through the North Pole.
+  3. If the bisector intersects the prime meridian at a single point, the i axis passes through that point.
+
+Equivalently, the i axis passes through the intersection of the prime meridian with the Equator, if this point is
+equidistant from Pos and Neg, or else the North Pole, if it is equidistant from Pos and Neg, or else the unique point
+on the prime meridian that is equidistant from Pos and Neg.
+
+In this basis, the intersection line of the planes tangent to the unit sphere at Pos and Neg is described by the set of
+points with i == t, k == 0. For any point P on the unit sphere, consider the unique plane containing both this line and
+P. Let β be the dihedral angle between this plane and the ij-plane. The intersection of this plane with the unit sphere
+is a circle; let C be its center and ψ be the complement of its polar angle, related by |C| = sin(ψ) = t*sin(β). ψ is
+the generalized analogue of the conventional latitude coordinate φ, and the vertical projective coordinate y is related
+by the same function of ψ as in the Mercator projection: y = ln(tan(π/4 + ψ/2)), and inversely ψ = 2*arctan(e^y) - π/2.
+The horizontal projective coordinate x is equal to the arc length along the circle from the point on the circle with
+maximal i coordinate to P.
+
+It is convenient to define a new basis in which to consider P, rotated by an angle β around the j axis such that C lies
+on the k' axis. In this basis, ψ is simply the latitude of P, and x is P's longitude from the positive i' axis.
+*/
+
 // New returns a pointer to a GeneralizedMercator with poles at pos and neg.
 // It panics if pos and neg are equal.
 func New(pos, neg s2.LatLng) *GeneralizedMercator {
@@ -56,17 +84,6 @@ func New(pos, neg s2.LatLng) *GeneralizedMercator {
 		panic("indistinguishable poles")
 	}
 
-	// The right-handed orthonormal basis (i, j, k) is defined such that
-	// k is in the direction from Neg to Pos, and i is on the line bisecting Pos and Neg.
-	// If Pos and Neg are not antipodes, i points in the direction of their average,
-	// or else in the direction of the intersection between their bisector and the prime meridian
-	// (and the Equator at 0° longitude, if their bisector contains the prime meridian,
-	// or the north pole, if their bisector contains both poles), with T on the positive i axis.
-	//
-	// The projection is defined according to this basis to be centered at
-	// the intersection of the positive i axis with the reference sphere,
-	// and oriented such that, at that point, j points to the right and k points up;
-	// Pos lies at the (infinitely distant) top of the projection, and Neg at the bottom.
 	gm.k = gm.pos.Sub(gm.neg).Normalize()
 
 	switch {
@@ -80,11 +97,11 @@ func New(pos, neg s2.LatLng) *GeneralizedMercator {
 		switch {
 		case gm.pos.X == 0:
 			// If Pos and Neg are on the great circle of longitude ±90°,
-			// i lies at the intersection of the prime meridian with the Equator.
+			// the i axis passes through the intersection of the prime meridian with the Equator.
 			gm.i = r3.Vector{1, 0, 0}
 
 		case gm.pos.Z == 0:
-			// If Pos and Neg are elsewhere on the equator, i lies at the north pole.
+			// If Pos and Neg are elsewhere on the equator, the i axis passes through the north pole.
 			gm.i = r3.Vector{0, 0, 1}
 
 		default:
@@ -94,15 +111,16 @@ func New(pos, neg s2.LatLng) *GeneralizedMercator {
 		}
 
 	default:
-		// Pos and Neg are not antipodes; define the basis such that i lies at the closest point equidistant from them.
+		// Pos and Neg are not antipodes; the i axis passes through the closest point equidistant from them.
 		gm.i = gm.pos.Add(gm.neg).Normalize()
 
 		// T = (Pos + Neg) / (1 + Pos•Neg) is the solution of T • Pos == 1, T • Neg == 1, and T • (Pos × Neg) == 0.
+		// t is the magnitude of T, equivalent to the secant of the half-angle between Pos and Neg.
 		gm.t = gm.pos.Add(gm.neg).Norm() / (1 + gm.pos.Dot(gm.neg))
 	}
 
 	// j is orthogonal to Pos and Neg in the direction of increasing projectional longitude at the zero point.
-	// If Pos and Neg are not antipodes, the intersection line of the planes tangent to the unit sphere at Pos and Neg is parallel to j.
+	// If Pos and Neg are not antipodes, the intersection line of the planes tangent to the unit sphere at Pos and Neg is parallel to the j axis.
 	gm.j = gm.k.Cross(gm.i)
 
 	return gm
@@ -125,17 +143,12 @@ func (gm *GeneralizedMercator) Project(ll s2.LatLng) r2.Point {
 
 		C = kprime.Mul(P.Dot(kprime))
 
-		// The vertical component of the projection is the same function of angle OPC as the Mercator projection,
-		// the difference being that this angle is in general no longer equal to the point's latitude.
-		// To differentiate the generalized case, call this angle ψ.
 		psi = math.Copysign(float64(P.Angle(P.Sub(C))), P.Dot(gm.k))
-		z   = math.Log(math.Tan(math.Pi/4 + psi/2))
-
-		// The horizontal component is equal to the measure of angle TCP.
-		theta = math.Copysign(float64(iprime.Angle(P.Sub(C))), P.Sub(C).Dot(gm.j))
+		y   = math.Log(math.Tan(math.Pi/4 + psi/2))
+		x   = math.Copysign(float64(iprime.Angle(P.Sub(C))), P.Sub(C).Dot(gm.j))
 	)
 
-	return r2.Point{X: theta, Y: z}
+	return r2.Point{x, y}
 }
 
 // Unproject converts a projected point p to a location on the reference sphere.
@@ -147,26 +160,15 @@ func (gm *GeneralizedMercator) Unproject(p r2.Point) s2.LatLng {
 		return s2.LatLngFromPoint(s2.Point{gm.neg})
 	}
 
-	// The locus of points on the sphere with equal vertical projective coordinate is a circle; let C be its center.
-	// The vertical component of the projection is the same function of angle OPC as the Mercator projection,
-	// the difference being that this angle is in general no longer equal to the point's latitude.
-	// To differentiate the generalized case, call this angle ψ.
-	// Use the inverse function to construct C.
 	var (
-		psi = 2*math.Atan(math.Exp(p.Y)) - math.Pi/2
-
-		// β is the measure of angle OTC, related by sin(β) = sin(ψ)/|T|.
-		// This is also the angular distance of C from the positive k axis.
+		psi  = 2*math.Atan(math.Exp(p.Y)) - math.Pi/2
 		beta = math.Asin(math.Sin(psi) / gm.t)
 
-		// Rotate the basis by an angle of β around the j axis such that C is parallel to the k' axis,
-		// and T-C is parallel to the i' axis.
 		iprime = s2.Rotate(s2.Point{gm.i}, s2.Point{gm.j}, s1.Angle(beta))
 		kprime = s2.Rotate(s2.Point{gm.k}, s2.Point{gm.j}, s1.Angle(beta))
 
 		C = kprime.Mul(math.Sin(psi))
 
-		// P is the point on the circle centered at C such that theta is the measure of angle TCP.
 		P = s2.Rotate(iprime, kprime, s1.Angle(p.X)).Mul(math.Cos(psi)).Add(C)
 	)
 
