@@ -30,7 +30,7 @@ func TestNew(t *testing.T) {
 				i:   r3.Vector{1, 0, 0},
 				j:   r3.Vector{0, 1, 0},
 				k:   r3.Vector{0, 0, 1},
-				t:   math.Inf(1),
+				d:   math.Inf(1),
 			},
 		},
 		{
@@ -42,7 +42,7 @@ func TestNew(t *testing.T) {
 				i:   r3.Vector{1, 0, 0},
 				j:   r3.Vector{0, -1, 0},
 				k:   r3.Vector{0, 0, -1},
-				t:   math.Inf(1),
+				d:   math.Inf(1),
 			},
 		},
 		{
@@ -54,7 +54,7 @@ func TestNew(t *testing.T) {
 				i:   r3.Vector{1, 0, 0},
 				j:   r3.Vector{0, 0, -1},
 				k:   r3.Vector{0, 1, 0},
-				t:   math.Inf(1),
+				d:   math.Inf(1),
 			},
 		},
 		{
@@ -66,7 +66,7 @@ func TestNew(t *testing.T) {
 				i:   r3.Vector{1, 0, 0},
 				j:   r3.Vector{0, 0, 1},
 				k:   r3.Vector{0, -1, 0},
-				t:   math.Inf(1),
+				d:   math.Inf(1),
 			},
 		},
 		{
@@ -78,7 +78,7 @@ func TestNew(t *testing.T) {
 				i:   r3.Vector{1, 0, 0},
 				j:   r3.Vector{0, sqrt2 / 2, sqrt2 / 2},
 				k:   r3.Vector{0, -sqrt2 / 2, sqrt2 / 2},
-				t:   math.Inf(1),
+				d:   math.Inf(1),
 			},
 		},
 		// Antipodes elsewhere on the Equator (X != 0, Z == 0)
@@ -91,7 +91,7 @@ func TestNew(t *testing.T) {
 				i:   r3.Vector{0, 0, 1},
 				j:   r3.Vector{0, -1, 0},
 				k:   r3.Vector{1, 0, 0},
-				t:   math.Inf(1),
+				d:   math.Inf(1),
 			},
 		},
 		{
@@ -103,7 +103,7 @@ func TestNew(t *testing.T) {
 				i:   r3.Vector{0, 0, 1},
 				j:   r3.Vector{0, 1, 0},
 				k:   r3.Vector{-1, 0, 0},
-				t:   math.Inf(1),
+				d:   math.Inf(1),
 			},
 		},
 		{
@@ -115,7 +115,7 @@ func TestNew(t *testing.T) {
 				i:   r3.Vector{0, 0, 1},
 				j:   r3.Vector{sqrt2 / 2, -sqrt2 / 2, 0},
 				k:   r3.Vector{sqrt2 / 2, sqrt2 / 2, 0},
-				t:   math.Inf(1),
+				d:   math.Inf(1),
 			},
 		},
 		// Other antipodes (X != 0, Z != 0)
@@ -128,7 +128,7 @@ func TestNew(t *testing.T) {
 				i:   r3.Vector{sqrt2 / 2, 0, -sqrt2 / 2},
 				j:   r3.Vector{0, 1, 0},
 				k:   r3.Vector{sqrt2 / 2, 0, sqrt2 / 2},
-				t:   math.Inf(1),
+				d:   math.Inf(1),
 			},
 		},
 		{
@@ -140,7 +140,7 @@ func TestNew(t *testing.T) {
 				i:   r3.Vector{sqrt2 / 2, 0, sqrt2 / 2},
 				j:   r3.Vector{0, -1, 0},
 				k:   r3.Vector{sqrt2 / 2, 0, -sqrt2 / 2},
-				t:   math.Inf(1),
+				d:   math.Inf(1),
 			},
 		},
 		{
@@ -152,7 +152,7 @@ func TestNew(t *testing.T) {
 				i:   r3.Vector{sqrt2 / sqrt3, 0, -1 / sqrt3},
 				j:   r3.Vector{-1 / (2 * sqrt3), sqrt3 / 2, -1 / (sqrt2 * sqrt3)},
 				k:   r3.Vector{0.5, 0.5, sqrt2 / 2},
-				t:   math.Inf(1),
+				d:   math.Inf(1),
 			},
 		},
 		// Non-antipodes
@@ -165,7 +165,7 @@ func TestNew(t *testing.T) {
 				i:   r3.Vector{1, 0, 0},
 				j:   r3.Vector{0, 1, 0},
 				k:   r3.Vector{0, 0, 1},
-				t:   2,
+				d:   2,
 			},
 		},
 		{
@@ -177,7 +177,7 @@ func TestNew(t *testing.T) {
 				i:   r3.Vector{sqrt2 / 2, sqrt2 / 2, 0},
 				j:   r3.Vector{-sqrt2 / 2, sqrt2 / 2, 0},
 				k:   r3.Vector{0, 0, 1},
-				t:   2,
+				d:   2,
 			},
 		},
 		{
@@ -189,7 +189,7 @@ func TestNew(t *testing.T) {
 				i:   r3.Vector{-sqrt3 / 4, 0.75, 0.5},
 				j:   r3.Vector{-sqrt3 / 2, -0.5, 0},
 				k:   r3.Vector{0.25, -sqrt3 / 4, sqrt3 / 2},
-				t:   2,
+				d:   2,
 			},
 		},
 		{
@@ -201,7 +201,7 @@ func TestNew(t *testing.T) {
 				i:   r3.Vector{0, 0, -1},
 				j:   r3.Vector{0, 1, 0},
 				k:   r3.Vector{1, 0, 0},
-				t:   sqrt2,
+				d:   sqrt2,
 			},
 		},
 	} {
@@ -227,7 +227,7 @@ var projTests = []struct {
 			i:   r3.Vector{1, 0, 0},
 			j:   r3.Vector{0, 1, 0},
 			k:   r3.Vector{0, 0, 1},
-			t:   math.Inf(1),
+			d:   math.Inf(1),
 		},
 		ps: []proj{
 			{s2.LatLng{Lat: pi / 2}, r2.Point{Y: math.Inf(1)}},
@@ -253,7 +253,7 @@ var projTests = []struct {
 			i:   r3.Vector{1, 0, 0},
 			j:   r3.Vector{0, 0, 1},
 			k:   r3.Vector{0, -1, 0},
-			t:   2,
+			d:   2,
 		},
 		ps: []proj{
 			{s2.LatLng{Lat: 0, Lng: -pi / 3}, r2.Point{Y: math.Inf(1)}},
@@ -279,7 +279,7 @@ var projTests = []struct {
 			i:   r3.Vector{0, 0, -1},
 			j:   r3.Vector{0, 1, 0},
 			k:   r3.Vector{1, 0, 0},
-			t:   sqrt2,
+			d:   sqrt2,
 		},
 		ps: []proj{
 			{s2.LatLng{Lat: -pi / 4, Lng: 0}, r2.Point{Y: math.Inf(1)}},
@@ -334,7 +334,7 @@ func gmApproxEqual(a, b *GeneralizedMercator) bool {
 		approxEqual(a.i, b.i) &&
 		approxEqual(a.j, b.j) &&
 		approxEqual(a.k, b.k) &&
-		(a.t == b.t || math.Abs(a.t-b.t) < 1e-15)
+		(a.d == b.d || math.Abs(a.d-b.d) < 1e-15)
 }
 
 // p0, p1, p2, and p3 describe points on the circular intersection of the unit sphere

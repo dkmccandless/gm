@@ -34,13 +34,9 @@ type GeneralizedMercator struct {
 	// i, j, and k are a convenient orthonormal basis for the projection operations.
 	i, j, k r3.Vector
 
-	// The vector T, discussed below, denotes the closest point to the origin on
-	// the line of intersection of the planes tangent to the unit sphere at Pos and Neg.
-	// t is the magnitude of T.
-
-	// t is the (possibly infinite) distance to the line of intersection
+	// d is the (possibly infinite) distance to the line of intersection
 	// of the planes tangent to the unit sphere at Pos and Neg.
-	t float64
+	d float64
 }
 
 /*
@@ -59,16 +55,16 @@ equidistant from Pos and Neg, or else the North Pole, if it is equidistant from 
 on the prime meridian that is equidistant from Pos and Neg.
 
 In this basis, the intersection line of the planes tangent to the unit sphere at Pos and Neg is described by the set of
-points with i == t, k == 0. For any point P on the unit sphere, consider the unique plane containing both this line and
+points with i == d, k == 0. For any point P on the unit sphere, consider the unique plane containing both this line and
 P. Let β be the dihedral angle between this plane and the ij-plane. The intersection of this plane with the unit sphere
-is a circle; let C be its center and ψ be the complement of its polar angle, related by |C| = sin(ψ) = t*sin(β). ψ is
-the generalized analogue of the conventional latitude coordinate φ, and the vertical projective coordinate y is related
-by the same function of ψ as in the Mercator projection: y = ln(tan(π/4 + ψ/2)), and inversely ψ = 2*arctan(e^y) - π/2.
-The horizontal projective coordinate x is equal to the arc length along the circle from the point on the circle with
-maximal i coordinate to P.
+is a circle; let ψ be the complement of its polar angle, related by sin(ψ) = d*sin(β). ψ is the generalized analogue of
+the conventional latitude coordinate φ, and the vertical projective coordinate y is related by the same function of ψ
+as in the Mercator projection: y = ln(tan(π/4 + ψ/2)), and inversely ψ = 2*arctan(e^y) - π/2. The horizontal projective
+coordinate x is equal to the arc length along the circle from the point on the circle with maximal i coordinate to P.
 
-It is convenient to define a new basis in which to consider P, rotated by an angle β around the j axis such that C lies
-on the k' axis. In this basis, ψ is simply the latitude of P, and x is P's longitude from the positive i' axis.
+It is convenient to define a new basis in which to consider P, rotated by an angle β around the j axis such that the
+axis of the circle coincides with the k' axis. In this basis, ψ is simply the latitude of P, and x is P's longitude
+from the positive i' axis.
 */
 
 // New returns a pointer to a GeneralizedMercator with poles at pos and neg.
@@ -89,7 +85,7 @@ func New(pos, neg s2.LatLng) *GeneralizedMercator {
 	switch {
 	case approxEqual(gm.pos, gm.neg.Mul(-1)):
 		// Pos and Neg are antipodes; their tangent planes intersect at the line at infinity.
-		gm.t = math.Inf(1)
+		gm.d = math.Inf(1)
 
 		// Define the basis such that i lies on the great circle equidistant from them and on the prime meridian:
 		// at 0° latitude, if the great circle contains it, or else at the north pole,
@@ -113,10 +109,7 @@ func New(pos, neg s2.LatLng) *GeneralizedMercator {
 	default:
 		// Pos and Neg are not antipodes; the i axis passes through the closest point equidistant from them.
 		gm.i = gm.pos.Add(gm.neg).Normalize()
-
-		// T = (Pos + Neg) / (1 + Pos•Neg) is the solution of T • Pos == 1, T • Neg == 1, and T • (Pos × Neg) == 0.
-		// t is the magnitude of T, equivalent to the secant of the half-angle between Pos and Neg.
-		gm.t = gm.pos.Add(gm.neg).Norm() / (1 + gm.pos.Dot(gm.neg))
+		gm.d = 1 / math.Cos(float64(gm.i.Angle(gm.pos)))
 	}
 
 	// j is orthogonal to Pos and Neg in the direction of increasing projectional longitude at the zero point.
@@ -137,15 +130,13 @@ func (gm *GeneralizedMercator) Project(ll s2.LatLng) r2.Point {
 	}
 
 	var (
-		beta   = math.Copysign(float64(gm.i.Sub(P.Mul(1/gm.t)).Cross(gm.j).Angle(gm.k)), P.Dot(gm.k))
+		beta   = math.Copysign(float64(gm.i.Sub(P.Mul(1/gm.d)).Cross(gm.j).Angle(gm.k)), P.Dot(gm.k))
 		iprime = s2.Rotate(s2.Point{gm.i}, s2.Point{gm.j}, s1.Angle(beta)).Vector
 		kprime = s2.Rotate(s2.Point{gm.k}, s2.Point{gm.j}, s1.Angle(beta)).Vector
+		psi    = math.Asin(P.Dot(kprime))
 
-		C = kprime.Mul(P.Dot(kprime))
-
-		psi = math.Copysign(float64(P.Angle(P.Sub(C))), P.Dot(gm.k))
-		y   = math.Log(math.Tan(math.Pi/4 + psi/2))
-		x   = math.Copysign(float64(iprime.Angle(P.Sub(C))), P.Sub(C).Dot(gm.j))
+		y = math.Log(math.Tan(math.Pi/4 + psi/2))
+		x = math.Atan2(P.Dot(gm.j), P.Dot(iprime))
 	)
 
 	return r2.Point{x, y}
@@ -161,15 +152,12 @@ func (gm *GeneralizedMercator) Unproject(p r2.Point) s2.LatLng {
 	}
 
 	var (
-		psi  = 2*math.Atan(math.Exp(p.Y)) - math.Pi/2
-		beta = math.Asin(math.Sin(psi) / gm.t)
-
+		psi    = 2*math.Atan(math.Exp(p.Y)) - math.Pi/2
+		beta   = math.Asin(math.Sin(psi) / gm.d)
 		iprime = s2.Rotate(s2.Point{gm.i}, s2.Point{gm.j}, s1.Angle(beta))
 		kprime = s2.Rotate(s2.Point{gm.k}, s2.Point{gm.j}, s1.Angle(beta))
 
-		C = kprime.Mul(math.Sin(psi))
-
-		P = s2.Rotate(iprime, kprime, s1.Angle(p.X)).Mul(math.Cos(psi)).Add(C)
+		P = iprime.Mul(math.Cos(psi) * math.Cos(p.X)).Add(gm.j.Mul(math.Cos(psi) * math.Sin(p.X))).Add(kprime.Mul(math.Sin(psi)))
 	)
 
 	return s2.LatLngFromPoint(s2.Point{P})
