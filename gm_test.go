@@ -380,3 +380,17 @@ func p3(c, d float64) r3.Vector {
 		Z: math.Sin(psi) * math.Cos(beta),
 	}
 }
+
+func BenchmarkProject(b *testing.B) {
+	gm := New(s2.LatLng{Lat: math.Pi / 3}, s2.LatLng{Lat: -math.Pi / 3})
+	for i := 0; i < b.N; i++ {
+		gm.Project(s2.LatLng{Lat: math.Pi / 4, Lng: 3 * math.Pi / 4})
+	}
+}
+
+func BenchmarkUnproject(b *testing.B) {
+	gm := New(s2.LatLng{Lat: math.Pi / 3}, s2.LatLng{Lat: -math.Pi / 3})
+	for i := 0; i < b.N; i++ {
+		gm.Unproject(r2.Point{1, 1})
+	}
+}
